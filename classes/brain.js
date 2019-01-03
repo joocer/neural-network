@@ -1,58 +1,46 @@
 
-// must be able to remember the weights so trained brains can be saved
 
-var myNetwork = new Network({
-    input: inputLayer,
-    hidden: [],
-    output: outputLayer
-   });
+class brain {
+    constructor(inputNeuronCount, outputNeuronCount) {
+        //loadWeights()
+        //saveWeights()
+        //Train(inputs, expectedOutput)
+        //Execute(inputs) // returns top output
+        //FullExecute(inputs) // returns all outputs
+        
+        this.Layers = new [];
+        this.Layers[0] = new nueronlayer(inputNeuronCount);
+        this.Layers[1] = new nueronlayer(outputNeuronCount);
 
+        this.addHiddenLayer = function(neuronCount) {
+            var size = this.Layers.length;
+            this.Layers.push(this.Layers[size - 1]);
+            this.Layers[size - 1] = new nueronlayer(neuronCount);
+        }
 
-// handles the set of layers
-function createNetwork(numInputs, numOutputs) {
-    // initializes with random values
-    // if you have a trained data set, initialize it with them
-}
-
-// call this to add the number of neurons
-function addLayer(neurons) {
-
-}
-
-// use this to execute the network
-function executeNetworkFullResults(data) {
-
-    // returns a dictionary of values, just take the top one
-    return [];
-}
-
-function executeNetwork(data) {
-    var results = executeNetworkFullResults(data);
-    return results[0];
-}
-
-
-var inputs = [];
-var layer = [[]];
-var outputs = [];
-
-var layerSize = 16;
-
-function load (weights) {
-    // load the weights
-}
-
-function fire() {
-    // instantiate the for this layer
-    var neurons = [];
-    for (i = 0; i < layerSize; i++) {
-        var n = new neuron();
+        this.calculateError = function(calculatedResult, desiredResult) {
+            return 0.5 * Math.Square(desiredResult - calculatedResult);
+        }
+        
+        this.calculateTotalError = function(outputArray, desiredResults) {
+            var error = 0;
+            for (var i = 0; i < outputArray.length; i++) {
+                error += calculateError(outputArray[i], desiredResults[i]);
+            }
+            return error;
+        }
     }
+}
 
-    // for all of the inputs from the previous layer
-    // input to the neurons on this layer
+class nueronlayer {
+    constructor(nueronCount) {
+        this.Nuerons = [];
+        this.size = nueronCount;
 
-    // fire each neuron and passforward the activation levels
+        this.execute = function() { 
+            // 
+        }
+    }
 }
 
 class neuron {
