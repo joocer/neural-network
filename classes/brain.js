@@ -1,45 +1,94 @@
-
-
 class brain {
     constructor(inputNeuronCount, outputNeuronCount) {
-        //loadWeights()
-        //saveWeights()
-        //Train(inputs, expectedOutput)
-        //Execute(inputs) // returns top output
-        //FullExecute(inputs) // returns all outputs
+        //todo: loadWeights()
+        //todo: saveWeights()
         
-        this.Layers = new [];
-        this.Layers[0] = new nueronlayer(inputNeuronCount);
-        this.Layers[1] = new nueronlayer(outputNeuronCount);
+        this.createNeuronLayer = function(size) {
+            var layer = [];
+            for (var l = 0; l < size; l++) {
+                layer.push(new neuron);
+            }
+            return layer;
+        }
 
         this.addHiddenLayer = function(neuronCount) {
             var size = this.Layers.length;
             this.Layers.push(this.Layers[size - 1]);
-            this.Layers[size - 1] = new nueronlayer(neuronCount);
+            this.Layers[size - 1] = this.createNeuronLayer(neuronCount);
         }
 
-        this.calculateError = function(calculatedResult, desiredResult) {
-            return 0.5 * Math.Square(desiredResult - calculatedResult);
+        this.calculateLoss = function(calculatedResult, desiredResult) {
+            return 0.5 * Math.pow(desiredResult - calculatedResult, 2);
         }
-        
-        this.calculateTotalError = function(outputArray, desiredResults) {
+
+        this.calculateTotalLoss = function(outputArray, desiredResults) {
             var error = 0;
             for (var i = 0; i < outputArray.length; i++) {
-                error += calculateError(outputArray[i], desiredResults[i]);
+                error += this.calculateLoss(outputArray[i], desiredResults[i]);
             }
             return error;
         }
-    }
-}
 
-class nueronlayer {
-    constructor(nueronCount) {
-        this.Nuerons = [];
-        this.size = nueronCount;
+        // execute the model and return all of the values
+        this.executeFullResults = function(inputValues) {
+            for (var l = 0; l < (this.Layers.length - 1); l++) {            // source layer
+                for (var t = 0; t < this.Layers[l + 1].length; t++) {
+                for (var s = 0; s < this.Layers[l].length; s++) {           // source node
+                       // target node
+console.log('add energy to [', l + 1, ',', t, '] from [', l, ',', s, ']');
+                        this.Layers[l + 1][t].addInput(this.Layers[l][s], this.Synapses[l][s][t]);
+                    }
+//console.log('#', l, s, t);
+                    //this.Layers[l + 1][t].fire();
+                }
+            }
 
-        this.execute = function() { 
-            // 
+            var result = [];
+            for (var i = 0; i < this.Layers[this.Layers.length - 1].length; i++) {
+                result.push(this.Layers[this.Layers.length - 1][i].fire());
+            }
+            return result;
         }
+
+        // return the best match and the score
+        this.execute = function(inputValues) { 
+            var fullResults = this.executeFullResults(inputValues);
+            var maxScore = -1;
+            var maxIndex = -1;
+            for (var i = 0; i < fullResults.length; i++) {
+                if (fullResults[i] > maxScore) {
+                    maxScore = fullResults[i];
+                    maxIndex = i;
+                }
+            }
+            return { index: maxIndex, score: maxScore };
+        }
+
+        this.train = function(inputValues, desiredResults) {
+            var fullResults = this.executeFullResults(inputValues);
+            var loss = this.calculateTotalLoss(fullResults, desiredResults);
+            // todo: backprop
+//console.log(loss);
+            return loss;
+        }
+
+        this.initialize = function() {
+            for (var l = 0; l < (this.Layers.length - 1); l++) {
+                this.Synapses[l] = [];
+                for (var s = 0; s < this.Layers[l].length; s++) {
+                    this.Synapses[l][s] = [];
+                    for (var t = 0; t < this.Layers[l + 1].length; t++) {
+                        this.Synapses[l][s][t] = Math.random();  // todo: look to replace or add another 'factor'
+                    }
+                }
+            }
+        }
+
+        this.Layers = [];
+        this.Layers[0] = this.createNeuronLayer(inputNeuronCount);
+        this.Layers[1] = this.createNeuronLayer(outputNeuronCount);
+
+        this.Synapses = [];
     }
 }
 
@@ -74,3 +123,22 @@ function sigmoid(t) {
 function tanh(t) {
     return Math.tanh(t);
 }
+
+//a b c rslt
+//0 0 0  0
+//0 0 1  1
+//0 1 0  1
+//0 1 1  0
+//1 0 0  1
+//1 0 1  0
+//1 1 0  0
+//1 1 1  0
+
+var myBrain = new brain(3,2);
+myBrain.addHiddenLayer(4);
+myBrain.initialize();
+myBrain.train([0,0,0], [0,1]);
+myBrain.train([0,0,1], [1,0]);
+myBrain.train([0,1,0], [1,0]);
+
+console.log(myBrain.execute([1,1,1]));
