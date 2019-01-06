@@ -1,12 +1,11 @@
 class brain {
-    constructor(inputNeuronCount, outputNeuronCount) { // todo: change to be brain({ inputSize: 3, hiddenLayers[ { neurons: 4 }, { neurons: 4 } ], outputSize: 2 })
-        //todo: loadWeights()
-        //todo: saveWeights()
-        
-        this.createNeuronLayer = function(size) {
+    constructor(inputNeuronCount, outputNeuronCount) {
+
+        this.createNeuronLayer = function(size, bias) {
+console.log ("creating neuron layer with bias of ", bias)
             var layer = [];
             for (var l = 0; l < size; l++) {
-                layer.push(new neuron);
+                layer.push(new neuron(bias));
             }
             return layer;
         }
@@ -14,7 +13,7 @@ class brain {
         this.addHiddenLayer = function(neuronCount) {
             var size = this.Layers.length;
             this.Layers.push(this.Layers[size - 1]);
-            this.Layers[size - 1] = this.createNeuronLayer(neuronCount);
+            this.Layers[size - 1] = this.createNeuronLayer(neuronCount, size * neuronCount);
         }
 
         this.calculateLoss = function(calculatedResult, desiredResult) {
@@ -32,20 +31,21 @@ class brain {
         // execute the model and return all of the values
         this.executeFullResults = function(inputValues) {
             // load the input layer (layer 0) with the inputValues
+console.log('==firing input layer neurons');
             for (var i = 0; i < this.Layers[0].length; i++) {
-                this.Layers[0][i].activationEnergy = inputValues[i];
+                this.Layers[0][i].addInput(inputValues[i], 1);
+                this.Layers[0][i].activate();
             }
-//console.log(this.Layers[0]);
 
             // trigger all the synapses
             for (var l = 0; l < (this.Layers.length - 1); l++) {            // source layer
                 for (var t = 0; t < this.Layers[l + 1].length; t++) {       // target node
                     for (var s = 0; s < this.Layers[l].length; s++) {       // source node                       
-//console.log('add energy to [', l + 1, ',', t, '] from [', l, ',', s, ']');
+console.log('add energy to [', l + 1, ',', t, '] from [', l, ',', s, ']');
                         this.Layers[l + 1][t].addInput(this.Layers[l][s].activationEnergy, this.Synapses[l][s][t]);
                     }
-//console.log('fire neuron [', l + 1, ',', t, ']');
-                    this.Layers[l + 1][t].fire();
+console.log('fire neuron [', l + 1, ',', t, ']');
+                    this.Layers[l + 1][t].activate();
                 }
             }
 
@@ -60,6 +60,7 @@ class brain {
         // return the best match and the score
         this.execute = function(inputValues) { 
             var fullResults = this.executeFullResults(inputValues);
+console.log(fullResults);
             var maxScore = -1;
             var maxIndex = -1;
             for (var i = 0; i < fullResults.length; i++) {
@@ -74,8 +75,36 @@ class brain {
         this.train = function(inputValues, desiredResults) {
             var fullResults = this.executeFullResults(inputValues);
             var loss = this.calculateTotalLoss(fullResults, desiredResults);
-            // todo: backprop
-//console.log(loss);
+console.log('loss on final layer is: ', loss);
+
+            // adjust last hidden layer
+            var penLayer = this.Layers.length - 1; // penultimate layer
+            for (var t = 0; t < this.Layers[penLayer].length; t++) {
+                for (var s = 0; s < this.Layers[penLayer - 1].length; s++) {
+                    // loss * derivative * energy
+                    var adjustment = this.calculateLoss(this.Layers[penLayer][t].activationEnergy, desiredResults[t]) *
+                        this.Layers[penLayer][t].derivative * this.Layers[penLayer - 1][s].activationEnergy;
+                    var newWeight = this.Synapses[penLayer - 1][s][t] - (this.LearningRate * adjustment);
+console.log('adjusting weight of ', adjustment, ' for [', this.Layers.length - 2, ',', s, ',', t, '] from ', this.Synapses[penLayer - 1][s][t], ' => ', newWeight);
+                    this.Synapses[penLayer - 1][s][t] = newWeight;
+                }
+            }
+
+            for (var l = penLayer - 1; l > 0; l--) {
+                for (var t = 0; t < this.Layers[l].length; t++) {
+                    var error = 0;
+                    for (var s = 0; s < this.Layers[l - 1].length; s++) {
+                        error += this.Synapses[l - 1][s][t] * this.Layers[l][t].derivative;
+console.log('calculated error of ', error, 'for [', l, ',', t, '], looking at synapse [', l - 1, ',', s, ',', t, ']');
+                    }
+                    var adjustment = error * this.Layers[l][t].derivative * this.Layers[l][t].activationEnergy;
+                    for (var s = 0; s < this.Layers[l - 1].length; s++) {
+                        var newWeight = this.Synapses[l - 1][s][t] - (this.LearningRate * adjustment);
+console.log('adjusting weight of ', adjustment, ' for [', l - 1, ',', s, ',', t, '] from ', this.Synapses[l - 1][s][t], ' => ', newWeight);
+                        this.Synapses[l - 1][s][t] = newWeight;
+                    }
+                }
+            }
             return loss;
         }
 
@@ -85,72 +114,56 @@ class brain {
                 for (var s = 0; s < this.Layers[l].length; s++) {
                     this.Synapses[l][s] = [];
                     for (var t = 0; t < this.Layers[l + 1].length; t++) {
-                        this.Synapses[l][s][t] = Math.random();  // todo: look to replace or add another 'factor'
+                        this.Synapses[l][s][t] = 1 - (Math.random() * 2);
+console.log('initializing synapse: [', l , ',', s, ',', t, '] with', this.Synapses[l][s][t]);
                     }
                 }
             }
         }
 
         this.Layers = [];
-        this.Layers[0] = this.createNeuronLayer(inputNeuronCount);
-        this.Layers[1] = this.createNeuronLayer(outputNeuronCount);
+        this.Layers[0] = this.createNeuronLayer(inputNeuronCount, 15);
+        this.Layers[1] = this.createNeuronLayer(outputNeuronCount, -7);
 
         this.Synapses = [];
+
+        this.LearningRate = 0.5;
     }
 }
 
 class neuron {
-    constructor() {
+    constructor(bias) {
         // the combined value of the inputs
         this.energy = 0;
+        // bias
+        this.bias = bias;
         // the result of the neuron being fired
         this.activationEnergy = 0;
-        // only when this is met does the neuron 'fire'
-        this.threshold = 0.01;
-        // this is the 'compression' algorithm - default to sigmoid
-        this.nonlinearityfunction = sigmoid;
+        // the derivitive of the energy
+        this.derivative = 0;
         // when neurons in previous layer fire, call this
         this.addInput = function(value, strength) {
+console.log ('adding energy ', { 'value': value, 'strength': strength, 'previous': this.energy, 'new': this.energy + (value * strength) });
             this.energy += this.energy + (value * strength);
-//console.log ('adding energy ', { 'value': value, 'strength': strength, 'total energy': this.energy });
         }
         // when all previous neurons have fired and this neuron's energy calculated, fire this neuron
-        // returns the power to forward on
-        this.fire = function() {
-            var activation = this.nonlinearityfunction(this.energy);
-            if (activation < this.threshold) { activation = null } 
+        this.activate = function() {
+            var activation = 1 / (1 + Math.exp(this.energy + this.bias));
+            this.derivative = activation * (1.0 - activation);
             this.activationEnergy = activation;
-console.log ('firing ', { 'energy': this.energy, 'activation': activation });
+console.log ('firing ', { 'energy': (this.energy + this.bias), 'activation': activation, 'derivative': this.derivative });
         }
-
     }
 }
 
-// http://www.zacwitte.com/javascript-sigmoid-function
-// compresses values to range [0,1]
-function sigmoid(t) {
-    return 1 / (1 + Math.exp(-t));
-}
-// compresses values to range [-1,1]
-function tanh(t) {
-    return Math.tanh(t);
-}
-
-//a b c rslt
-//0 0 0  0
-//0 0 1  1
-//0 1 0  1
-//0 1 1  0
-//1 0 0  1
-//1 0 1  0
-//1 1 0  0
-//1 1 1  0
-
-var myBrain = new brain(3,2);
-myBrain.addHiddenLayer(4);
+var myBrain = new brain(2,2);
+myBrain.addHiddenLayer(2);
 myBrain.initialize();
-//myBrain.train([0,0,0], [0,1]);
-//myBrain.train([0,0,1], [1,0]);
-//myBrain.train([0,1,0], [1,0]);
-
-console.log(myBrain.execute([1,1,1]));
+for (var c = 0; c < 50; c++) {
+    console.log ('======================training round');
+    myBrain.train([0,0], [1,0]);    // 0
+//    myBrain.train([0,1], [0,1]);    // 1
+//    myBrain.train([1,0], [0,1]);    // 1
+}
+//console.log ('======================execution round 1');
+console.log(myBrain.execute([0,0]));  // 0
